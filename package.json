@@ -1,17 +1,18 @@
 {
   "name": "belt-monitor",
   "version": "1.0.0",
-  "description": "魏家峁煤矿皮带运输智能监测系统",
+  "description": "belt monitor dashboard",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
-    "vue": "^3.4.0",
+    "echarts": "^5.4.3",
     "pinia": "^2.1.7",
     "three": "^0.160.0",
-    "echarts": "^5.4.3"
+    "vue": "^3.4.0",
+    "vue-router": "^4.6.4"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.0",

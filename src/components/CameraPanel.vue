@@ -14,15 +14,15 @@
 
     <div class="cam-wrap" ref="wrapRef">
 
-      <!-- 真实相机流：后端返回 MJPEG，img 标签直接播放 -->
-      <!-- 相机到货后只需要换后端代码，这里完全不动 -->
-      <img
+      <!-- WebRTC 实时画面 -->
+      <video
+        ref="videoEl"
         class="cam-stream"
-        :src="streamUrl"
-        @error="onStreamError"
-        @load="onStreamLoad"
+        autoplay
+        muted
+        playsinline
         v-show="streamOk"
-      />
+      ></video>
 
       <!-- 相机离线时显示的模拟画面 -->
       <canvas
@@ -31,7 +31,7 @@
         v-show="!streamOk"
       ></canvas>
 
-      <!-- 检测框叠加层（始终在最上面，后续接算法结果在这里画框） -->
+      <!-- 检测框叠加层（始终在最上面） -->
       <canvas ref="overlayRef" class="cam-overlay"></canvas>
 
       <!-- 状态指示灯 -->
@@ -58,6 +58,12 @@
         相机未连接 · 模拟画面
       </div>
 
+      <!-- WebRTC 连接中提示 -->
+      <div class="cam-connecting" v-if="connecting && !streamOk">
+        <span class="conn-dot"></span>
+        正在连接相机...
+      </div>
+
     </div>
   </div>
 </template>
@@ -68,24 +74,88 @@ import { useMonitorStore } from '@/stores/monitor'
 
 const store      = useMonitorStore()
 const wrapRef    = ref(null)
-const canvasRef  = ref(null)   // 离线模拟画面
-const overlayRef = ref(null)   // 检测框叠加层
+const canvasRef  = ref(null)
+const overlayRef = ref(null)
+const videoEl    = ref(null)
 const timeStr    = ref('--:--:--')
-const streamOk   = ref(false)  // 相机流是否正常
+const streamOk   = ref(false)
+const connecting = ref(false)
 
-// ── 后端 MJPEG 流地址 ──
-// 相机到货后，只需修改后端 CameraStreamController.java 里的 generateFrame() 方法
-// 前端这里完全不需要改
+// ── WebRTC 配置 ──────────────────────────────────────────
+// ★ 如果 MediaMTX 不在本机，把 localhost 换成对应 IP ★
+const MEDIAMTX_URL = 'http://localhost:8889'
+const STREAM_NAME  = 'belt_ai'
 
-const streamUrl = 'http://localhost:8080/api/camera/stream'
+let pc          = null
+let retryTimer  = null
 
+// ── WebRTC 连接 ───────────────────────────────────────────
+async function startWebRTC() {
+  // 清理上一次连接
+  if (pc) { pc.close(); pc = null }
+  if (retryTimer) { clearTimeout(retryTimer); retryTimer = null }
 
-let fallbackCtx, overlayCtx
-let animId, cf = 0
-let tearActive = false, tearProgress = 0
-let resizeObserver
+  connecting.value = true
 
-// ── 计算属性 ──
+  try {
+    pc = new RTCPeerConnection()
+
+    // 只接收视频，不发送
+    pc.addTransceiver('video', { direction: 'recvonly' })
+    pc.addTransceiver('audio', { direction: 'recvonly' })
+
+    // 收到视频流，绑定到 video 标签
+    pc.ontrack = (e) => {
+      if (videoEl.value) {
+        videoEl.value.srcObject = e.streams[0]
+        streamOk.value  = true
+        connecting.value = false
+      }
+    }
+
+    // 连接状态变化
+    pc.onconnectionstatechange = () => {
+      const state = pc?.connectionState
+      if (state === 'disconnected' || state === 'failed') {
+        streamOk.value  = false
+        connecting.value = false
+        // 3秒后自动重连
+        retryTimer = setTimeout(startWebRTC, 3000)
+      }
+    }
+
+    // 向 MediaMTX 发起 WHEP 握手
+    const offer = await pc.createOffer()
+    await pc.setLocalDescription(offer)
+
+    const res = await fetch(`${MEDIAMTX_URL}/${STREAM_NAME}/whep`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/sdp' },
+      body: offer.sdp
+    })
+
+    if (!res.ok) throw new Error(`MediaMTX 返回 ${res.status}`)
+
+    const answer = await res.text()
+    await pc.setRemoteDescription({ type: 'answer', sdp: answer })
+
+  } catch (e) {
+    console.warn('[Camera] WebRTC 连接失败:', e.message)
+    streamOk.value  = false
+    connecting.value = false
+    // 5秒后重试
+    retryTimer = setTimeout(startWebRTC, 5000)
+  }
+}
+
+function stopWebRTC() {
+  if (retryTimer) { clearTimeout(retryTimer); retryTimer = null }
+  if (pc) { pc.close(); pc = null }
+  streamOk.value  = false
+  connecting.value = false
+}
+
+// ── 计算属性 ──────────────────────────────────────────────
 const isAlarm = computed(() => store.detection.status === 'alarm')
 
 const statusLabel = computed(() => {
@@ -100,11 +170,9 @@ const statusChipClass = computed(() => {
   return 'ok'
 })
 
-// ── 相机流事件 ──
-function onStreamLoad()  { streamOk.value = true  }
-function onStreamError() { streamOk.value = false }
+// ── 监听检测状态，控制检测框叠加层 ──────────────────────
+let tearActive = false, tearProgress = 0
 
-// ── 监听检测状态，控制检测框叠加层 ──
 watch(() => store.detection.status, (val) => {
   if (val === 'alarm') {
     tearActive   = true
@@ -119,7 +187,7 @@ watch(() => store.detection.status, (val) => {
   }
 })
 
-// ── Canvas 尺寸同步 ──
+// ── Canvas 尺寸同步 ───────────────────────────────────────
 function resizeCanvas() {
   const wrap = wrapRef.value
   if (!wrap) return
@@ -128,9 +196,13 @@ function resizeCanvas() {
   if (overlayRef.value) { overlayRef.value.width = w; overlayRef.value.height = h }
 }
 
-// ════════════════════════════════════════
-// 离线模拟画面（相机未连接时显示）
-// ════════════════════════════════════════
+// ════════════════════════════════════════════════════════
+// 离线模拟画面
+// ════════════════════════════════════════════════════════
+let fallbackCtx, overlayCtx
+let animId, cf = 0
+let resizeObserver
+
 function drawFallback() {
   animId = requestAnimationFrame(drawFallback)
   cf++
@@ -140,7 +212,7 @@ function drawFallback() {
   timeStr.value = [n.getHours(), n.getMinutes(), n.getSeconds()]
     .map(v => String(v).padStart(2, '0')).join(':')
 
-  // 相机流正常时只画检测框，不画模拟背景
+  // 相机流正常时只画检测框覆盖层
   if (streamOk.value) {
     drawOverlay()
     return
@@ -210,11 +282,11 @@ function drawFallback() {
   drawOverlay()
 }
 
-// ════════════════════════════════════════
+// ════════════════════════════════════════════════════════
 // 检测框叠加层
 // 后续接入 YOLOv8 真实结果后：
-// 把 tearActive/tearProgress 替换成后端推过来的 BBox 坐标即可
-// ════════════════════════════════════════
+// 把 tearActive/tearProgress 替换成后端推过来的 BBox 坐标
+// ════════════════════════════════════════════════════════
 function drawOverlay() {
   const cv = overlayRef.value
   if (!cv || !overlayCtx) return
@@ -243,7 +315,6 @@ function drawOverlay() {
   if (tearProgress > 0.2) {
     const bx = tx - 26, by = 8, bw = 56, bh = Math.min(tLen + 14, H - 18)
 
-    // 检测框
     overlayCtx.strokeStyle = `rgba(255,59,92,${0.5 + Math.sin(cf * 0.2) * 0.15})`
     overlayCtx.lineWidth   = 1
     overlayCtx.strokeRect(bx, by, bw, bh)
@@ -271,7 +342,7 @@ function drawOverlay() {
   }
 }
 
-// ── 生命周期 ──
+// ── 生命周期 ──────────────────────────────────────────────
 onMounted(async () => {
   await nextTick()
   await new Promise(r => setTimeout(r, 100))
@@ -284,11 +355,13 @@ onMounted(async () => {
   resizeObserver.observe(wrapRef.value)
 
   drawFallback()
+  startWebRTC()   // 启动 WebRTC 连接
 })
 
 onUnmounted(() => {
   cancelAnimationFrame(animId)
   resizeObserver?.disconnect()
+  stopWebRTC()
 })
 </script>
 
@@ -316,10 +389,9 @@ onUnmounted(() => {
 .ph-chip.danger { color: var(--danger);  border-color: rgba(255,59,92,.4);  background: rgba(255,59,92,.06);
   animation: blink 0.6s step-end infinite; }
 
-/* 画面容器 */
 .cam-wrap { flex: 1; position: relative; overflow: hidden; background: #0a0c05; }
 
-/* 真实相机流 */
+/* WebRTC 视频 */
 .cam-stream {
   position: absolute; inset: 0;
   width: 100%; height: 100%;
@@ -327,22 +399,18 @@ onUnmounted(() => {
   z-index: 1;
 }
 
-/* 离线模拟画面 */
 .cam-fallback {
   position: absolute; inset: 0;
   width: 100% !important; height: 100% !important;
   display: block; z-index: 1;
 }
-.cam-fallback.hidden { display: none; }
 
-/* 检测框叠加层（始终最上层） */
 .cam-overlay {
   position: absolute; inset: 0;
   width: 100% !important; height: 100% !important;
   pointer-events: none; z-index: 3;
 }
 
-/* 状态指示灯 */
 .cam-indicator {
   position: absolute; top: 10px; left: 10px;
   display: flex; align-items: center; gap: 7px;
@@ -355,7 +423,6 @@ onUnmounted(() => {
   animation: pulse 0.4s ease-in-out infinite; }
 .ind-text { font-family: var(--font-mono); font-size: 9px; color: var(--text-sec); letter-spacing: .06em; }
 
-/* 角落标线 */
 .bracket {
   position: absolute; width: 18px; height: 18px;
   border-color: rgba(0,212,255,.25); border-style: solid;
@@ -377,7 +444,6 @@ onUnmounted(() => {
   pointer-events: none; z-index: 4;
 }
 
-/* 离线提示 */
 .cam-offline-tip {
   position: absolute; top: 10px; right: 10px;
   display: flex; align-items: center; gap: 6px;
@@ -389,5 +455,27 @@ onUnmounted(() => {
   width: 6px; height: 6px; border-radius: 50%;
   background: var(--warn);
   animation: pulse 1.2s ease-in-out infinite;
+}
+
+.cam-connecting {
+  position: absolute; top: 10px; right: 10px;
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--font-mono); font-size: 9px; color: var(--accent2);
+  background: rgba(6,12,20,.85); border: 1px solid rgba(0,200,255,.25);
+  padding: 4px 10px; z-index: 4;
+}
+.conn-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent2);
+  animation: pulse 0.8s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.85); }
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
 }
 </style>

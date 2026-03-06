@@ -1,62 +1,7 @@
-<template>
-  <div class="app">
-    <TitleBar @open-alarms="() => {}" />
-
-    <div class="main-grid">
-      <!-- 左：点云 -->
-      <PointCloudPanel class="pc-panel" />
-
-      <!-- 右：相机 + 侧边栏 -->
-      <div class="right-col">
-        <CameraPanel class="cam-panel" />
-        <DetectSidebar class="sidebar" />
-      </div>
-    </div>
-
-    <StatusBar :connected="wsConnected" />
-  </div>
+﻿<template>
+  <RouterView />
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
-import TitleBar       from '@/components/TitleBar.vue'
-import PointCloudPanel from '@/components/PointCloudPanel.vue'
-import CameraPanel    from '@/components/CameraPanel.vue'
-import DetectSidebar  from '@/components/DetectSidebar.vue'
-import StatusBar      from '@/components/StatusBar.vue'
-import { useWebSocket } from '@/composables/useWebSocket'
-
-const { connected: wsConnected, connect } = useWebSocket()
-onMounted(connect)
+import { RouterView } from 'vue-router'
 </script>
-
-<style scoped>
-.app {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
-}
-
-.main-grid {
-  flex: 1;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  overflow: hidden;
-  border-top: none;
-}
-
-.pc-panel {
-  border-right: 1px solid var(--border);
-}
-
-.right-col {
-  display: grid;
-  grid-template-columns: 1fr 220px;
-  overflow: hidden;
-}
-
-.cam-panel {
-  border-right: 1px solid var(--border);
-}
-</style>
