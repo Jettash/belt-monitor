@@ -1,4 +1,4 @@
-﻿import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
 
 function isAuthenticated() {
   return sessionStorage.getItem('auth') === 'true'
@@ -15,6 +15,12 @@ const routes = [
     path: '/dashboard',
     name: 'dashboard',
     component: () => import('@/views/DashboardView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/report',
+    name: 'report',
+    component: () => import('@/views/ReportView.vue'),
     meta: { requiresAuth: true }
   },
   {

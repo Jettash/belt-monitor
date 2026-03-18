@@ -1,91 +1,158 @@
 package com.wjiamao.belt_monitor.simulator;
 
+import com.wjiamao.belt_monitor.model.LoadRecord;
+import com.wjiamao.belt_monitor.model.SpeedRecord;
+import com.wjiamao.belt_monitor.repository.LoadRecordRepository;
+import com.wjiamao.belt_monitor.repository.SpeedRecordRepository;
 import com.wjiamao.belt_monitor.websocket.MonitorWebSocketHandler;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Random;
 
 /**
- * 数据模拟器
- * 每秒生成一次模拟数据并通过 WebSocket 推送给前端
- * 等真实硬件到位后，把这里替换成读取传感器数据的代码即可
+ * 每秒推送一次实时指标，每 10 分钟写入一条载量记录。
+ *
+ * 数据来源优先级：
+ *   速度   → HGL-150 Modbus（不可用时降级为模拟）
+ *   截面积 → SICK LMS 雷达（不可用时降级为模拟）
+ *   载量   → area × speed × COAL_DENSITY × 3600；皮带停止时强制为 0
+ *   点云、相机推理等 → 始终为模拟（前端展示用）
  */
+@Slf4j
 @Component
 @EnableScheduling
 public class DataSimulator {
 
-    private final Random random = new Random();
-    private final DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
+    // ── 物理常数 ───────────────────────────────────────────
+    /** 煤炭堆积密度 t/m³（与雷达服务保持一致，现场标定后调整） */
+    private static final double COAL_DENSITY      = 0.92;
+    /** 速度低于此值视为皮带停止，载量强制归零 */
+    private static final double SPEED_STOP_THRESH = 0.1;
+    /** 载量上限（过滤明显异常帧） */
+    private static final double LOAD_MAX          = 2500.0;
 
-    // 状态变量
-    private double load       = 1842;   // 瞬时载量 t/h
-    private double shiftTon   = 28450;  // 本班运量 t
-    private double dayTon     = 142680; // 今日运量 t
-    private int    runtimeSec = 24138;  // 运行时长 s
-    private int    tearCycle  = 0;      // 撕裂模拟周期计数
+    @Autowired private LoadRecordRepository  loadRecordRepository;
+    @Autowired private SpeedRecordRepository speedRecordRepository;
+    @Autowired private ModbusSpeedService    modbusSpeedService;
+    @Autowired private LidarState            lidarState;
+
+    private final Random             random        = new Random();
+    private final DateTimeFormatter  timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
+
+    // ── 运行时状态 ─────────────────────────────────────────
+    private double shiftTon   = 0;
+    private double dayTon     = 0;
+    private double runtimeSec = 0;
+    private int    tearCycle  = 0;
+
+    private double lastSavedShiftTon = 0;
+
+    // ── 模拟参数（点云展示用，与真实数据无关） ────────────
+    private double simLoadPhase = 0;
 
     /**
-     * 每1000ms执行一次，推送实时指标
+     * 每 1000ms 执行一次，推送实时指标
      */
     @Scheduled(fixedRate = 1000)
     public void pushMetrics() {
-        // 载量随机波动
-        load += (random.nextDouble() - 0.5) * 70;
-        load  = Math.max(1300, Math.min(2200, load));
 
-        double speed    = 2.28 + random.nextDouble() * 0.35;
-        double area     = 1.52 + random.nextDouble() * 0.52;
-        double height   = 0.30 + random.nextDouble() * 0.18;
-        int    pcFps    = 20 + random.nextInt(6);
-        int    pcPoints = 43000 + random.nextInt(7000);
-        int    inferMs  = 13 + random.nextInt(8);
-        int    avgLoad  = 1660 + random.nextInt(130);
+        // ── 1. 速度（真实 / 降级模拟）─────────────────────
+        double rawSpeed = modbusSpeedService.readSpeed();
+        boolean speedReal = !Double.isNaN(rawSpeed) && rawSpeed >= 0;
+        double speed = speedReal
+                ? rawSpeed
+                : 2.28 + random.nextDouble() * 0.35;
 
-        shiftTon   += load / 3600;
-        dayTon     += load / 3600;
+        speedRecordRepository.save(new SpeedRecord(LocalDateTime.now(), speed));
+
+        // ── 2. 皮带运行判断 ────────────────────────────────
+        boolean beltRunning = speed >= SPEED_STOP_THRESH;
+
+        // ── 3. 截面积（真实 / 降级模拟）───────────────────
+        double area, heapHeight;
+        boolean lidarReal = lidarState.isAvailable();
+        if (lidarReal) {
+            area       = lidarState.getCrossArea();
+            heapHeight = lidarState.getHeapHeight();
+        } else {
+            // 模拟截面积：用正弦波让波形好看一些
+            simLoadPhase += 0.10;
+            double lf  = 0.62 + Math.sin(simLoadPhase) * 0.25 + (random.nextDouble() - 0.5) * 0.06;
+            lf         = Math.max(0.35, Math.min(0.92, lf));
+            area       = 0.04 + lf * 0.10;            // 约 0.04~0.13 m²
+            heapHeight = 0.05 + lf * 0.20;
+        }
+
+        // ── 4. 载量计算 ────────────────────────────────────
+        double instantLoad;
+        if (!beltRunning) {
+            // 皮带停止：一切归零，不累计吨数
+            instantLoad = 0.0;
+            area        = 0.0;
+            heapHeight  = 0.0;
+        } else {
+            instantLoad = area * speed * COAL_DENSITY * 3600.0;
+            instantLoad = Math.max(0, Math.min(LOAD_MAX, instantLoad));
+        }
+
+        // ── 5. 吨数累计（仅皮带运行时） ────────────────────
+        if (beltRunning) {
+            shiftTon += instantLoad / 3600.0;
+            dayTon   += instantLoad / 3600.0;
+        }
         runtimeSec++;
 
-        // 拼装 JSON（不引入额外依赖，手动拼接）
+        // ── 6. 模拟点云参数（前端展示，不影响载量） ────────
+        int    pcFps    = 20 + random.nextInt(6);
+        int    pcPoints = beltRunning ? 43000 + random.nextInt(7000) : 5000 + random.nextInt(2000);
+        int    inferMs  = 13 + random.nextInt(8);
+        int    avgLoad  = (int) Math.max(0, instantLoad * (0.95 + random.nextDouble() * 0.10));
+
+        // ── 7. 推送 WebSocket ──────────────────────────────
         String json = String.format("""
                 {
-                  "type": "metrics",
-                  "load": %.0f,
-                  "speed": %.2f,
-                  "crossArea": %.2f,
-                  "heapHeight": %.2f,
-                  "shiftTon": %.0f,
-                  "dayTon": %.0f,
-                  "avgLoad": %d,
-                  "runtimeSec": %d,
-                  "pcFps": %d,
-                  "pcPoints": %d,
-                  "inferMs": %d
+                  "type":       "metrics",
+                  "load":       %.0f,
+                  "speed":      %.2f,
+                  "crossArea":  %.4f,
+                  "heapHeight": %.3f,
+                  "shiftTon":   %.0f,
+                  "dayTon":     %.0f,
+                  "avgLoad":    %d,
+                  "runtimeSec": %.0f,
+                  "pcFps":      %d,
+                  "pcPoints":   %d,
+                  "inferMs":    %d
                 }""",
-                load, speed, area, height,
+                instantLoad, speed, area, heapHeight,
                 shiftTon, dayTon, avgLoad, runtimeSec,
                 pcFps, pcPoints, inferMs
         );
 
         MonitorWebSocketHandler.broadcast(json);
+
+        if (log.isDebugEnabled()) {
+            log.debug("speed={:.2f} area={:.4f} load={:.0f} real=[spd={} lidar={}]",
+                    speed, area, instantLoad, speedReal, lidarReal);
+        }
     }
 
     /**
-     * 每55秒模拟一次撕裂事件，持续20秒
-     * 等相机接入后，这里替换成调用 YOLOv8 检测结果
+     * 每55秒模拟一次撕裂事件（相机接入前的演示）
      */
     @Scheduled(fixedRate = 1000)
     public void pushDetection() {
         tearCycle++;
 
-        String status;
-        String results;
-
+        String status, results;
         if (tearCycle >= 55 && tearCycle < 75) {
-            // 撕裂告警状态
             status = "alarm";
             results = """
                     [
@@ -95,7 +162,6 @@ public class DataSimulator {
                       {"id":"edge",  "label":"边缘破损","conf":1.9,  "color":"var(--warn)"}
                     ]""";
         } else {
-            // 正常状态
             if (tearCycle >= 75) tearCycle = 0;
             status = "normal";
             results = """
@@ -108,28 +174,42 @@ public class DataSimulator {
         }
 
         String time = LocalTime.now().format(timeFormatter);
-        String json = String.format("""
+        MonitorWebSocketHandler.broadcast(String.format("""
                 {
-                  "type": "detection",
+                  "type":   "detection",
                   "status": "%s",
-                  "time": "%s",
+                  "time":   "%s",
                   "results": %s
-                }""", status, time, results);
+                }""", status, time, results));
 
-        MonitorWebSocketHandler.broadcast(json);
-
-        // 撕裂开始时额外推一条报警消息
         if (tearCycle == 55) {
-            String alarmJson = String.format("""
+            MonitorWebSocketHandler.broadcast(String.format("""
                     {
-                      "type": "alarm",
+                      "type":  "alarm",
                       "level": "danger",
                       "label": "紧急",
-                      "msg": "底面检测到纵向撕裂，置信度 91.8%%，请立即处置",
-                      "src": "CAM-01",
-                      "time": "%s"
-                    }""", time);
-            MonitorWebSocketHandler.broadcast(alarmJson);
+                      "msg":   "底面检测到纵向撕裂，置信度 91.8%%，请立即处置",
+                      "src":   "CAM-01",
+                      "time":  "%s"
+                    }""", time));
         }
+    }
+
+    /**
+     * 每 10 分钟将载量数据写入数据库
+     */
+    @Scheduled(fixedRate = 600_000, initialDelay = 600_000)
+    public void saveLoadRecord() {
+        double periodTon = shiftTon - lastSavedShiftTon;
+        lastSavedShiftTon = shiftTon;
+
+        loadRecordRepository.save(new LoadRecord(
+                LocalDateTime.now(),
+                Math.max(0, periodTon),
+                shiftTon,
+                dayTon
+        ));
+        log.info("[DB] 载量写入 period={:.1f}t shift={:.0f}t day={:.0f}t",
+                periodTon, shiftTon, dayTon);
     }
 }

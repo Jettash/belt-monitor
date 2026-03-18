@@ -114,19 +114,19 @@ function fmtT(v) {
 }
 
 .sb-block {
-  padding: 12px 14px;
+  padding: 16px 18px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
 .sb-title {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-muted);
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -139,7 +139,7 @@ function fmtT(v) {
 }
 
 .det-item {
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 .det-item:last-child {
   margin-bottom: 0;
@@ -148,21 +148,21 @@ function fmtT(v) {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  margin-bottom: 3px;
+  margin-bottom: 4px;
 }
 .det-name {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--text-sec);
   transition: color 0.3s;
 }
 .det-conf {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-muted);
 }
 .det-track {
-  height: 3px;
+  height: 4px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   overflow: hidden;
@@ -174,11 +174,11 @@ function fmtT(v) {
   border-radius: 1px;
 }
 .det-footer {
-  margin-top: 8px;
+  margin-top: 10px;
   display: flex;
   justify-content: space-between;
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 11px;
   color: var(--text-muted);
 }
 .det-ms {
@@ -189,25 +189,25 @@ function fmtT(v) {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  padding: 5px 0;
+  padding: 7px 0;
   border-bottom: 1px solid var(--border);
 }
 .param-row:last-child {
   border-bottom: none;
 }
 .pk {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-sec);
 }
 .pv {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-pri);
 }
 .pv em {
   font-style: normal;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--text-muted);
   margin-left: 2px;
 }
@@ -219,20 +219,20 @@ function fmtT(v) {
   display: flex;
   gap: 10px;
   align-items: center;
-  padding: 6px 0;
+  padding: 8px 0;
   border: 1px solid var(--border);
   border-radius: 2px;
   background: var(--bg-card);
 }
 .event-time {
-  min-width: 64px;
-  padding-left: 8px;
+  min-width: 70px;
+  padding-left: 10px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-muted);
 }
 .event-msg {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-pri);
 }
 
@@ -244,18 +244,18 @@ function fmtT(v) {
   min-height: 0;
 }
 .alarm-title {
-  padding: 10px 14px 6px;
+  padding: 12px 18px 8px;
   border-bottom: 1px solid var(--border);
   margin: 0;
   flex-shrink: 0;
 }
 .read-btn {
   margin-left: auto;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--text-muted);
   background: none;
   border: 1px solid var(--border);
-  padding: 1px 7px;
+  padding: 2px 8px;
   cursor: pointer;
   border-radius: 2px;
   letter-spacing: 0.04em;
@@ -270,7 +270,7 @@ function fmtT(v) {
 }
 
 .alarm-row {
-  padding: 8px 14px;
+  padding: 10px 18px;
   border-bottom: 1px solid var(--border);
   display: flex;
   gap: 8px;
@@ -294,10 +294,10 @@ function fmtT(v) {
 
 .al-badge {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.05em;
-  padding: 1px 6px;
+  padding: 2px 7px;
   border: 1px solid;
   margin-top: 1px;
   white-space: nowrap;
@@ -330,14 +330,14 @@ function fmtT(v) {
   min-width: 0;
 }
 .al-msg {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--text-pri);
   line-height: 1.4;
 }
 .al-meta {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 11px;
   color: var(--text-muted);
   margin-top: 2px;
 }

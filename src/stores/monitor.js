@@ -6,6 +6,9 @@ function clamp(val, min, max) {
 }
 
 export const useMonitorStore = defineStore('monitor', () => {
+  // 迟滞阈值：速度 < 0.1 切停止，> 0.3 才切运行，防止抖动
+  const SPEED_OFF = 0.1
+  const SPEED_ON  = 0.3
   const beltRunning = ref(true)
 
   const metrics = reactive({
@@ -51,14 +54,6 @@ export const useMonitorStore = defineStore('monitor', () => {
     Array.from({ length: 60 }, () => 1600 + Math.random() * 500)
   )
 
-  let speedPhase = 0
-  function nextSpeed() {
-    speedPhase += 0.27
-    const wave = 4.0 + Math.sin(speedPhase) * 0.16
-    const jitter = (Math.random() - 0.5) * 0.06
-    return parseFloat(clamp(wave + jitter, 3.8, 4.2).toFixed(2))
-  }
-
   function pushAlarm(alarm) {
     const id = Date.now()
     alarms.value.unshift({ id, ...alarm, unread: false, level: 'info' })
@@ -73,7 +68,14 @@ export const useMonitorStore = defineStore('monitor', () => {
 
   function updateMetrics(data) {
     Object.assign(metrics, data)
-    metrics.speed = nextSpeed()
+
+    // 根据速度更新皮带运行状态（迟滞，避免抖动）
+    const spd = metrics.speed ?? 0
+    if (beltRunning.value && spd < SPEED_OFF) {
+      beltRunning.value = false
+    } else if (!beltRunning.value && spd > SPEED_ON) {
+      beltRunning.value = true
+    }
 
     loadHistory.value.push(data.load ?? metrics.load)
     if (loadHistory.value.length > 60) loadHistory.value.shift()

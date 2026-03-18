@@ -369,20 +369,24 @@ onUnmounted(() => {
 .panel { display: flex; flex-direction: column; overflow: hidden; }
 
 .panel-head {
-  height: 36px; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 12px;
-  background: var(--bg-panel); border-bottom: 1px solid var(--border);
+  height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
 }
-.ph-left  { display: flex; align-items: center; gap: 8px; }
-.ph-id    { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); letter-spacing: .1em; }
+.ph-left  { display: flex; align-items: center; gap: 10px; }
+.ph-id    { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); letter-spacing: .1em; }
 .ph-sep   { color: var(--border); }
-.ph-name  { font-size: 12px; font-weight: 600; color: var(--text-pri); }
-.ph-right { display: flex; gap: 6px; }
+.ph-name  { font-size: 14px; font-weight: 600; color: var(--text-pri); }
+.ph-right { display: flex; gap: 7px; }
 .ph-chip {
-  font-family: var(--font-mono); font-size: 10px; color: var(--text-muted);
+  font-family: var(--font-mono); font-size: 12px; color: var(--text-muted);
   background: var(--bg-deep, #060c14); border: 1px solid var(--border);
-  padding: 2px 7px; border-radius: 2px;
+  padding: 3px 9px; border-radius: 2px;
 }
 .ph-chip.ok     { color: var(--accent2); border-color: rgba(0,255,157,.25); background: rgba(0,255,157,.05); }
 .ph-chip.warn   { color: var(--warn);    border-color: rgba(255,170,0,.3);  background: rgba(255,170,0,.05); }
@@ -412,60 +416,60 @@ onUnmounted(() => {
 }
 
 .cam-indicator {
-  position: absolute; top: 10px; left: 10px;
-  display: flex; align-items: center; gap: 7px;
-  background: rgba(6,12,20,.85); border: 1px solid var(--border);
-  padding: 5px 10px; z-index: 4;
+  position: absolute; top: 12px; left: 12px;
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(6,12,20,.88); border: 1px solid var(--border);
+  padding: 6px 12px; z-index: 4; border-radius: 2px;
 }
-.ind-led { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.ind-led { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
 .ind-led.normal { background: var(--accent2); border: 1px solid rgba(0,255,157,.4); }
 .ind-led.alarm  { background: var(--danger);  border: 1px solid rgba(255,59,92,.5);
   animation: pulse 0.4s ease-in-out infinite; }
-.ind-text { font-family: var(--font-mono); font-size: 9px; color: var(--text-sec); letter-spacing: .06em; }
+.ind-text { font-family: var(--font-mono); font-size: 11px; color: var(--text-sec); letter-spacing: .06em; }
 
 .bracket {
-  position: absolute; width: 18px; height: 18px;
+  position: absolute; width: 20px; height: 20px;
   border-color: rgba(0,212,255,.25); border-style: solid;
   pointer-events: none; z-index: 4;
 }
-.bracket.tl { top: 8px;    left: 8px;   border-width: 1px 0 0 1px; }
-.bracket.tr { top: 8px;    right: 8px;  border-width: 1px 1px 0 0; }
-.bracket.bl { bottom: 8px; left: 8px;   border-width: 0 0 1px 1px; }
-.bracket.br { bottom: 8px; right: 8px;  border-width: 0 1px 1px 0; }
+.bracket.tl { top: 10px;    left: 10px;   border-width: 1px 0 0 1px; }
+.bracket.tr { top: 10px;    right: 10px;  border-width: 1px 1px 0 0; }
+.bracket.bl { bottom: 10px; left: 10px;   border-width: 0 0 1px 1px; }
+.bracket.br { bottom: 10px; right: 10px;  border-width: 0 1px 1px 0; }
 
 .cam-footer {
-  position: absolute; bottom: 8px; left: 10px;
-  font-family: var(--font-mono); font-size: 9px; color: rgba(200,210,220,.28);
+  position: absolute; bottom: 10px; left: 12px;
+  font-family: var(--font-mono); font-size: 11px; color: rgba(200,210,220,.28);
   letter-spacing: .06em; pointer-events: none; z-index: 4;
 }
 .cam-infer {
-  position: absolute; bottom: 8px; right: 10px;
-  font-family: var(--font-mono); font-size: 9px; color: rgba(0,212,255,.3);
+  position: absolute; bottom: 10px; right: 12px;
+  font-family: var(--font-mono); font-size: 11px; color: rgba(0,212,255,.3);
   pointer-events: none; z-index: 4;
 }
 
 .cam-offline-tip {
-  position: absolute; top: 10px; right: 10px;
-  display: flex; align-items: center; gap: 6px;
-  font-family: var(--font-mono); font-size: 9px; color: var(--warn);
-  background: rgba(6,12,20,.85); border: 1px solid rgba(255,170,0,.3);
-  padding: 4px 10px; z-index: 4;
+  position: absolute; top: 12px; right: 12px;
+  display: flex; align-items: center; gap: 7px;
+  font-family: var(--font-mono); font-size: 11px; color: var(--warn);
+  background: rgba(6,12,20,.88); border: 1px solid rgba(255,170,0,.3);
+  padding: 5px 12px; z-index: 4; border-radius: 2px;
 }
 .offline-dot {
-  width: 6px; height: 6px; border-radius: 50%;
+  width: 7px; height: 7px; border-radius: 50%;
   background: var(--warn);
   animation: pulse 1.2s ease-in-out infinite;
 }
 
 .cam-connecting {
-  position: absolute; top: 10px; right: 10px;
-  display: flex; align-items: center; gap: 6px;
-  font-family: var(--font-mono); font-size: 9px; color: var(--accent2);
-  background: rgba(6,12,20,.85); border: 1px solid rgba(0,200,255,.25);
-  padding: 4px 10px; z-index: 4;
+  position: absolute; top: 12px; right: 12px;
+  display: flex; align-items: center; gap: 7px;
+  font-family: var(--font-mono); font-size: 11px; color: var(--accent2);
+  background: rgba(6,12,20,.88); border: 1px solid rgba(0,200,255,.25);
+  padding: 5px 12px; z-index: 4; border-radius: 2px;
 }
 .conn-dot {
-  width: 6px; height: 6px; border-radius: 50%;
+  width: 7px; height: 7px; border-radius: 50%;
   background: var(--accent2);
   animation: pulse 0.8s ease-in-out infinite;
 }

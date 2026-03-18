@@ -112,7 +112,7 @@
       <div class="sb-sep"></div>
       <div class="sb-item">
         <span class="sb-k">皮带速度</span>
-        <span class="sb-v">{{ BELT_SPEED.toFixed(1) }}</span>
+        <span class="sb-v">{{ beltSpeed.toFixed(2) }}</span>
         <span class="sb-u">m/s</span>
       </div>
       <div class="sb-sep"></div>
@@ -136,8 +136,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import * as THREE from 'three'
+import { useMonitorStore } from '../stores/monitor'
+
+const store = useMonitorStore()
+const beltSpeed = computed(() => store.metrics.speed)
 
 // ── refs ──────────────────────────────────────────────────
 const wrap3d     = ref(null)
@@ -167,7 +171,7 @@ const BELT_W     = 1.25
 const BELT_HALF  = BELT_W / 2
 const BELT_DEPTH = 0.25
 const BELT_LEN   = 6.0
-const BELT_SPEED = 4.0
+// BELT_SPEED 已改为响应式，见顶部 beltSpeed computed（来自 store.metrics.speed）
 const COAL_DEN   = 0.92
 const MAX_COAL_H = BELT_DEPTH
 
@@ -419,7 +423,7 @@ function update3DCloud(loadFactor, offset) {
   // 更新指标
   crossArea.value  = data.area
   coalMaxH.value   = data.maxH
-  load.value       = data.area * BELT_SPEED * COAL_DEN * 3600
+  load.value       = data.area * beltSpeed.value * COAL_DEN * 3600
   pointCount.value = data.count
 
   return data
@@ -746,20 +750,28 @@ function animate() {
   const now = performance.now()
   const dt  = 0.016  // 约60fps
 
-  // 流动偏移（煤随皮带运动）
-  flowOffset += BELT_SPEED * dt * 0.1  // 缩放因子调整视觉速度
+  const running = store.beltRunning
 
-  // 自转（3D视图）
-  if (currentView.value === '3d' && !drag) {
-    ry += 0.0012
-    applyCamera3d()
+  // 皮带运行时才更新流动偏移
+  if (running) {
+    flowOffset += beltSpeed.value * dt * 0.1  // 缩放因子调整视觉速度
   }
 
-  // 每 2s 重建点云（更新载量波动）
+  // ★ 自动旋转已禁用：3D视图保持静止，用户可通过鼠标手动旋转 ★
+
+  // 每 900ms 重建点云
   if (now - lastRebuild > 900) {
-    loadPhase += 0.10
-    const lf = 0.62 + Math.sin(loadPhase) * 0.25 + (Math.random() - 0.5) * 0.06
-    currentLoadFactor = Math.max(0.35, Math.min(0.92, lf))
+    let lf
+    if (!running) {
+      // 皮带停止 → 空皮带，不显示煤
+      lf = 0
+    } else {
+      // 皮带运行 → 正弦波模拟载量波动
+      loadPhase += 0.10
+      lf = 0.62 + Math.sin(loadPhase) * 0.25 + (Math.random() - 0.5) * 0.06
+      lf = Math.max(0.35, Math.min(0.92, lf))
+    }
+    currentLoadFactor = lf
 
     update3DCloud(currentLoadFactor, flowOffset)
     updateSectionLine3d(currentLoadFactor, loadPhase)
@@ -869,26 +881,26 @@ onUnmounted(() => {
    头部
 ═══════════════════════════════════════════════════ */
 .panel-head {
-  height: 36px;
+  height: 44px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 14px;
+  padding: 0 16px;
   background: #0b1220;
   border-bottom: 1px solid rgba(0, 180, 255, 0.12);
 }
-.ph-left  { display: flex; align-items: center; gap: 8px; }
-.ph-id    { font-size: 10px; color: #3a5a78; letter-spacing: .12em; }
-.ph-sep   { color: rgba(0,180,255,0.18); font-size: 12px; }
-.ph-name  { font-size: 12px; font-weight: 600; color: #c8dff2; letter-spacing: .04em; }
-.ph-right { display: flex; gap: 6px; }
+.ph-left  { display: flex; align-items: center; gap: 10px; }
+.ph-id    { font-size: 12px; color: #3a5a78; letter-spacing: .12em; }
+.ph-sep   { color: rgba(0,180,255,0.18); font-size: 13px; }
+.ph-name  { font-size: 14px; font-weight: 600; color: #c8dff2; letter-spacing: .04em; }
+.ph-right { display: flex; gap: 7px; }
 .ph-chip  {
-  font-size: 10px;
+  font-size: 12px;
   color: #4a6a8a;
   background: #060c14;
   border: 1px solid rgba(0,180,255,0.12);
-  padding: 2px 8px;
+  padding: 3px 9px;
   border-radius: 2px;
   letter-spacing: .05em;
 }
@@ -927,23 +939,23 @@ onUnmounted(() => {
 }
 
 .view-label {
-  height: 24px;
+  height: 28px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 0 10px;
+  gap: 8px;
+  padding: 0 12px;
   background: rgba(11, 18, 32, 0.95);
   border-bottom: 1px solid rgba(0,180,255,0.08);
-  font-size: 9px;
+  font-size: 11px;
   color: #4a6a8a;
   letter-spacing: .12em;
   text-transform: uppercase;
 }
 
 .vl-dot {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: #0096ff;
   box-shadow: 0 0 5px #0096ff88;
@@ -965,18 +977,18 @@ canvas { display: block; width: 100% !important; height: 100% !important; }
 ═══════════════════════════════════════════════════ */
 .view-ctrl {
   position: absolute;
-  top: 8px;
-  right: 10px;
+  top: 9px;
+  right: 12px;
   display: flex;
-  gap: 2px;
+  gap: 3px;
 }
 .vbtn {
   font-family: inherit;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: .1em;
   text-transform: uppercase;
-  padding: 3px 9px;
+  padding: 4px 11px;
   background: rgba(6,12,20,.9);
   border: 1px solid rgba(0,180,255,0.14);
   color: #4a6a8a;
@@ -992,19 +1004,19 @@ canvas { display: block; width: 100% !important; height: 100% !important; }
 ═══════════════════════════════════════════════════ */
 .pc-legend {
   position: absolute;
-  right: 10px;
+  right: 12px;
   top: 50%;
   transform: translateY(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   pointer-events: none;
 }
-.leg-label { font-size: 8px; color: #3a5a78; }
+.leg-label { font-size: 10px; color: #3a5a78; }
 .leg-bar {
-  width: 7px;
-  height: 80px;
+  width: 8px;
+  height: 90px;
   background: linear-gradient(to bottom, #ff1a1a, #ff8800, #ffee00, #00e676, #00aaff, #0033dd);
   border: 1px solid rgba(0,180,255,.18);
   border-radius: 1px;
@@ -1015,25 +1027,25 @@ canvas { display: block; width: 100% !important; height: 100% !important; }
 ═══════════════════════════════════════════════════ */
 .sec-overlay {
   position: absolute;
-  top: 8px;
-  left: 8px;
+  top: 10px;
+  left: 10px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   pointer-events: none;
 }
 .so-row {
   display: flex;
   align-items: baseline;
-  gap: 5px;
-  background: rgba(6,12,20,.85);
+  gap: 6px;
+  background: rgba(6,12,20,.88);
   border: 1px solid rgba(0,180,255,0.1);
-  padding: 2px 7px;
+  padding: 3px 9px;
   border-radius: 2px;
 }
-.so-k { font-size: 8px; color: #3a5a78; min-width: 38px; }
-.so-v { font-size: 11px; font-weight: 600; color: #c8dff2; }
-.so-u { font-size: 8px; color: #5a7a98; }
+.so-k { font-size: 10px; color: #3a5a78; min-width: 40px; }
+.so-v { font-size: 13px; font-weight: 600; color: #c8dff2; }
+.so-u { font-size: 10px; color: #5a7a98; }
 
 /* ═══════════════════════════════════════════════════
    标尺（截面视图底部）
@@ -1043,20 +1055,20 @@ canvas { display: block; width: 100% !important; height: 100% !important; }
   bottom: 0;
   left: 0;
   right: 0;
-  height: 20px;
+  height: 22px;
   pointer-events: none;
 }
 .ruler-inner {
   position: absolute;
   top: 3px;
-  left: 8px;
-  right: 8px;
+  left: 10px;
+  right: 10px;
   border-top: 1px solid rgba(0,180,255,.1);
   display: flex;
   justify-content: space-between;
   padding-top: 3px;
 }
-.ruler-inner span { font-size: 8px; color: rgba(0,180,255,.25); }
+.ruler-inner span { font-size: 10px; color: rgba(0,180,255,.25); }
 
 /* ═══════════════════════════════════════════════════
    扫描线
@@ -1089,7 +1101,7 @@ canvas { display: block; width: 100% !important; height: 100% !important; }
   align-items: center;
   justify-content: center;
   color: #3a5a78;
-  font-size: 11px;
+  font-size: 13px;
   letter-spacing: .1em;
 }
 
@@ -1097,12 +1109,12 @@ canvas { display: block; width: 100% !important; height: 100% !important; }
    底部状态栏
 ═══════════════════════════════════════════════════ */
 .status-bar {
-  height: 32px;
+  height: 38px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 0;
-  padding: 0 14px;
+  padding: 0 16px;
   background: #080f1c;
   border-top: 1px solid rgba(0,180,255,0.1);
   overflow: hidden;
@@ -1110,16 +1122,16 @@ canvas { display: block; width: 100% !important; height: 100% !important; }
 .sb-item {
   display: flex;
   align-items: baseline;
-  gap: 5px;
-  padding: 0 10px;
+  gap: 6px;
+  padding: 0 12px;
   flex-shrink: 0;
 }
-.sb-k { font-size: 8px; color: #3a5a78; letter-spacing: .08em; }
-.sb-v { font-size: 12px; font-weight: 700; color: #c8dff2; letter-spacing: .04em; }
-.sb-u { font-size: 8px; color: #5a7a98; }
+.sb-k { font-size: 10px; color: #3a5a78; letter-spacing: .08em; }
+.sb-v { font-size: 14px; font-weight: 700; color: #c8dff2; letter-spacing: .04em; }
+.sb-u { font-size: 10px; color: #5a7a98; }
 .sb-sep {
   width: 1px;
-  height: 16px;
+  height: 18px;
   background: rgba(0,180,255,0.1);
   flex-shrink: 0;
 }

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="login-page">
     <div class="bg"></div>
     <div class="grid-bg"></div>
@@ -12,9 +12,9 @@
     </div>
 
     <div class="left-panel">
-      <div class="company-tag">China Huaneng Group</div>
-      <div class="company-name">中国华能集团</div>
-      <div class="mine-name">魏家峁煤矿</div>
+      <div class="company-tag">WEIJIAMAO COAL &amp; POWER</div>
+      <div class="company-name">北方魏家峁煤电</div>
+      <div class="company-sub">有限责任公司</div>
       <div class="divider"></div>
       <div class="subtitle">
         运输皮带三维测量与智能检测系统
@@ -154,7 +154,7 @@ async function handleLogin() {
   inset: 0;
   z-index: 0;
   background:
-    radial-gradient(1000px 500px at 70% 20%, rgba(0, 110, 210, 0.2), transparent 60%),
+    radial-gradient(1000px 500px at 70% 20%, rgba(0, 110, 210, 0.22), transparent 60%),
     linear-gradient(160deg, rgba(5, 10, 20, 0.92), rgba(8, 14, 28, 0.88), rgba(4, 8, 18, 0.95));
 }
 
@@ -198,69 +198,70 @@ async function handleLogin() {
 
 .company-tag {
   font-family: var(--font-head);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   letter-spacing: 4px;
   color: var(--accent);
   text-transform: uppercase;
-  margin-bottom: 16px;
-}
-
-.company-name {
-  font-size: 32px;
-  font-weight: 700;
-  color: #e8f4ff;
-  line-height: 1.25;
-}
-
-.mine-name {
-  font-size: 30px;
-  font-weight: 300;
-  color: var(--text-pri);
-  margin-bottom: 24px;
-}
-
-.divider {
-  width: 48px;
-  height: 2px;
-  background: linear-gradient(90deg, var(--accent), transparent);
   margin-bottom: 20px;
 }
 
-.subtitle {
-  font-size: 13px;
+.company-name {
+  font-size: 38px;
+  font-weight: 700;
+  color: #e8f4ff;
+  line-height: 1.2;
+}
+
+.company-sub {
+  font-size: 26px;
+  font-weight: 300;
   color: var(--text-sec);
-  letter-spacing: 1px;
+  margin-bottom: 28px;
+  letter-spacing: 2px;
+}
+
+.divider {
+  width: 56px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent), transparent);
+  margin-bottom: 24px;
+}
+
+.subtitle {
+  font-size: 15px;
+  color: var(--text-sec);
+  letter-spacing: 1.5px;
 }
 
 .login-card {
   position: relative;
   z-index: 2;
-  width: 400px;
-  background: rgba(10, 16, 30, 0.82);
-  border: 1px solid rgba(0, 180, 255, 0.18);
+  width: 420px;
+  background: rgba(10, 16, 30, 0.85);
+  border: 1px solid rgba(0, 180, 255, 0.2);
   border-radius: 4px;
-  padding: 40px;
+  padding: 48px 44px;
   backdrop-filter: blur(20px);
   box-shadow:
-    0 0 0 1px rgba(0, 180, 255, 0.06),
-    0 32px 64px rgba(0, 0, 0, 0.6);
+    0 0 0 1px rgba(0, 180, 255, 0.07),
+    0 32px 80px rgba(0, 0, 0, 0.65);
 }
 
 .card-eyebrow {
   font-family: var(--font-head);
-  font-size: 11px;
+  font-size: 13px;
   letter-spacing: 3px;
   color: var(--accent);
   text-transform: uppercase;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .card-title {
-  font-size: 22px;
+  font-size: 26px;
   font-weight: 500;
   letter-spacing: 2px;
-  margin-bottom: 26px;
+  margin-bottom: 30px;
 }
 
 .error-msg {
@@ -268,22 +269,22 @@ async function handleLogin() {
   background: rgba(255, 77, 109, 0.1);
   color: #ff7d92;
   border-radius: 4px;
-  padding: 10px 12px;
-  margin-bottom: 14px;
-  font-size: 12px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  font-size: 13px;
 }
 
 .form-group {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .form-label {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 1.5px;
   text-transform: uppercase;
   color: var(--text-sec);
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 input {
@@ -291,9 +292,9 @@ input {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 2px;
-  padding: 12px 14px;
+  padding: 14px 16px;
   font-family: var(--font-ui);
-  font-size: 13px;
+  font-size: 15px;
   color: var(--text-pri);
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
@@ -306,36 +307,37 @@ input:focus {
 }
 
 .form-options {
-  margin-bottom: 22px;
+  margin-bottom: 26px;
 }
 
 .remember {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-sec);
 }
 
 .remember input[type='checkbox'] {
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
   accent-color: var(--accent);
 }
 
 .btn-login {
   width: 100%;
-  padding: 13px;
+  padding: 15px;
   border: none;
   border-radius: 2px;
   font-family: var(--font-ui);
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
   letter-spacing: 3px;
   color: #fff;
   cursor: pointer;
   background: linear-gradient(135deg, #0077cc, #00b4ff);
-  box-shadow: 0 4px 20px rgba(0, 180, 255, 0.3);
+  box-shadow: 0 4px 24px rgba(0, 180, 255, 0.32);
+  transition: opacity 0.2s;
 }
 
 .btn-login:disabled {
@@ -368,7 +370,7 @@ input:focus {
   }
 
   .login-card {
-    width: min(92vw, 400px);
+    width: min(92vw, 420px);
   }
 }
 </style>

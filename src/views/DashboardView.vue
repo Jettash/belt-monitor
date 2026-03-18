@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="app">
     <TitleBar @open-alarms="() => {}" />
 
@@ -50,7 +50,7 @@ onMounted(connect)
 
 .right-col {
   display: grid;
-  grid-template-columns: 1fr 220px;
+  grid-template-columns: 1fr 280px;
   overflow: hidden;
 }
 
